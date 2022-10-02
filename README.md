@@ -1,6 +1,8 @@
-# Slab
+# rc-slab
 
-Pre-allocated storage for a uniform data type.
+Pre-allocated storage for a uniform data type, with in-built reference counting.
+
+This is a fork of [slab](https://github.com/tokio-rs/slab) but with a reference counted key built-in to each entry. Originally made for [spressolisp](https://github.com/psiayn/spressolisp).
 
 [![Crates.io][crates-badge]][crates-url]
 [![Build Status][ci-badge]][ci-url]
