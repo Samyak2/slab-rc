@@ -1120,6 +1120,35 @@ impl<T> Slab<T> {
         None
     }
 
+    pub fn cleanup(&mut self) {
+        for value in self.entries.iter_mut() {
+            if Rc::<usize>::strong_count(&value.key) == 0 {
+                // Swap the entry at the provided value
+                let prev = mem::replace(
+                    value,
+                    Entry {
+                        kind: EntryKind::Vacant(self.next),
+                        key: Rc::clone(&value.key),
+                    },
+                );
+
+                match prev {
+                    Entry {
+                        kind: EntryKind::Occupied(_),
+                        ..
+                    } => {
+                        self.len -= 1;
+                        self.next = *value.key;
+                    }
+                    _ => {
+                        // Woops, the entry is actually vacant, restore the state
+                        *value = prev;
+                    }
+                }
+            }
+        }
+    }
+
     /// Remove and return the value associated with the given key.
     ///
     /// The key is then released and may be associated with future stored
@@ -1292,7 +1321,7 @@ impl<T> IntoIterator for Slab<T> {
 }
 
 impl<'a, T> IntoIterator for &'a Slab<T> {
-    type Item = (usize, &'a T);
+    type Item = (usize, &'a Entry<T>);
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Iter<'a, T> {
@@ -1582,17 +1611,17 @@ impl<T> FusedIterator for IntoIter<T> {}
 // ===== Iter =====
 
 impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = (usize, &'a T);
+    type Item = (usize, &'a Entry<T>);
 
     fn next(&mut self) -> Option<Self::Item> {
         for (key, entry) in &mut self.entries {
             if let Entry {
-                kind: EntryKind::Occupied(ref v),
+                kind: EntryKind::Occupied(_),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((key, entry));
             }
         }
 
@@ -1609,12 +1638,12 @@ impl<T> DoubleEndedIterator for Iter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         while let Some((key, entry)) = self.entries.next_back() {
             if let Entry {
-                kind: EntryKind::Occupied(ref v),
+                kind: EntryKind::Occupied(_),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((key, entry));
             }
         }
 
