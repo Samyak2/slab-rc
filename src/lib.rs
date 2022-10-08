@@ -211,13 +211,13 @@ pub struct Drain<'a, T> {
 
 /// Entry in the slab.
 #[derive(Clone, Debug)]
-pub struct Entry<T> {
-    pub kind: EntryKind<T>,
-    pub key: Rc<usize>,
+struct Entry<T> {
+    kind: EntryKind<T>,
+    key: Rc<usize>,
 }
 
 #[derive(Clone, Debug)]
-pub enum EntryKind<T> {
+enum EntryKind<T> {
     Vacant(usize),
     Occupied(T),
 }
@@ -1339,7 +1339,7 @@ impl<T> ops::IndexMut<Rc<usize>> for Slab<T> {
 }
 
 impl<T> IntoIterator for Slab<T> {
-    type Item = (usize, T);
+    type Item = (Rc<usize>, T);
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> IntoIter<T> {
@@ -1351,7 +1351,7 @@ impl<T> IntoIterator for Slab<T> {
 }
 
 impl<'a, T> IntoIterator for &'a Slab<T> {
-    type Item = (usize, &'a Entry<T>);
+    type Item = (Rc<usize>, &'a T);
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Iter<'a, T> {
@@ -1360,7 +1360,7 @@ impl<'a, T> IntoIterator for &'a Slab<T> {
 }
 
 impl<'a, T> IntoIterator for &'a mut Slab<T> {
-    type Item = (usize, &'a mut T);
+    type Item = (Rc<usize>, &'a mut T);
     type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> IterMut<'a, T> {
@@ -1589,17 +1589,17 @@ impl<'a, T> VacantEntry<'a, T> {
 // ===== IntoIter =====
 
 impl<T> Iterator for IntoIter<T> {
-    type Item = (usize, T);
+    type Item = (Rc<usize>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        for (key, entry) in &mut self.entries {
+        for (_, entry) in &mut self.entries {
             if let Entry {
                 kind: EntryKind::Occupied(v),
                 ..
             } = entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((entry.key, v));
             }
         }
 
@@ -1614,14 +1614,14 @@ impl<T> Iterator for IntoIter<T> {
 
 impl<T> DoubleEndedIterator for IntoIter<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        while let Some((key, entry)) = self.entries.next_back() {
+        while let Some((_, entry)) = self.entries.next_back() {
             if let Entry {
                 kind: EntryKind::Occupied(v),
                 ..
             } = entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((entry.key, v));
             }
         }
 
@@ -1641,17 +1641,17 @@ impl<T> FusedIterator for IntoIter<T> {}
 // ===== Iter =====
 
 impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = (usize, &'a Entry<T>);
+    type Item = (Rc<usize>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        for (key, entry) in &mut self.entries {
+        for (_, entry) in &mut self.entries {
             if let Entry {
-                kind: EntryKind::Occupied(_),
+                kind: EntryKind::Occupied(ref v),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, entry));
+                return Some((Rc::clone(&entry.key), v));
             }
         }
 
@@ -1666,14 +1666,14 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
 impl<T> DoubleEndedIterator for Iter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        while let Some((key, entry)) = self.entries.next_back() {
+        while let Some((_, entry)) = self.entries.next_back() {
             if let Entry {
-                kind: EntryKind::Occupied(_),
+                kind: EntryKind::Occupied(ref v),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, entry));
+                return Some((Rc::clone(&entry.key), v));
             }
         }
 
@@ -1693,17 +1693,17 @@ impl<T> FusedIterator for Iter<'_, T> {}
 // ===== IterMut =====
 
 impl<'a, T> Iterator for IterMut<'a, T> {
-    type Item = (usize, &'a mut T);
+    type Item = (Rc<usize>, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        for (key, entry) in &mut self.entries {
+        for (_, entry) in &mut self.entries {
             if let Entry {
                 kind: EntryKind::Occupied(ref mut v),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((Rc::clone(&entry.key), v));
             }
         }
 
@@ -1718,14 +1718,14 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
 impl<T> DoubleEndedIterator for IterMut<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        while let Some((key, entry)) = self.entries.next_back() {
+        while let Some((_, entry)) = self.entries.next_back() {
             if let Entry {
                 kind: EntryKind::Occupied(ref mut v),
                 ..
             } = *entry
             {
                 self.len -= 1;
-                return Some((key, v));
+                return Some((Rc::clone(&entry.key), v));
             }
         }
 
