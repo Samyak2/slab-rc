@@ -697,6 +697,25 @@ fn try_remove() {
     assert_eq!(slab.get(key), None);
 }
 
+#[test]
+fn cleanup() {
+    let mut slab = Slab::new();
+
+    let one = slab.insert(123);
+    slab.insert(456);
+    let three = slab.insert(789);
+
+    let some_storage = vec![Rc::clone(&one), Rc::clone(&three)];
+
+    slab.cleanup();
+
+    let entries: Vec<_> = slab.iter().collect();
+
+    assert_eq!(entries, vec![(one, &123), (three, &789)]);
+
+    drop(some_storage);
+}
+
 // #[rustversion::since(1.39)]
 // #[test]
 // fn const_new() {
