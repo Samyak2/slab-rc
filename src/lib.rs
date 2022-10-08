@@ -954,7 +954,7 @@ impl<T> Slab<T> {
     /// unreachable!();
     /// ```
     #[cfg_attr(not(slab_no_track_caller), track_caller)]
-    pub fn key_of(&self, present_element: &T) -> usize {
+    pub fn key_of(&self, present_element: &T) -> Rc<usize> {
         let element_ptr = present_element as *const T as usize;
         let base_ptr = self.entries.as_ptr() as usize;
         // Use wrapping subtraction in case the reference is bad
@@ -967,7 +967,7 @@ impl<T> Slab<T> {
             panic!("The reference points to a value outside this slab");
         }
         // The reference cannot point to a vacant entry, because then it would not be valid
-        key
+        Rc::clone(&self.entries[key].key)
     }
 
     /// Insert a value in the slab, returning key assigned to the value.
@@ -1299,6 +1299,34 @@ impl<T> ops::IndexMut<usize> for Slab<T> {
     #[cfg_attr(not(slab_no_track_caller), track_caller)]
     fn index_mut(&mut self, key: usize) -> &mut T {
         match self.entries.get_mut(key) {
+            Some(&mut Entry {
+                kind: EntryKind::Occupied(ref mut v),
+                ..
+            }) => v,
+            _ => panic!("invalid key"),
+        }
+    }
+}
+
+impl<T> ops::Index<Rc<usize>> for Slab<T> {
+    type Output = T;
+
+    #[cfg_attr(not(slab_no_track_caller), track_caller)]
+    fn index(&self, key: Rc<usize>) -> &T {
+        match self.entries.get(*key) {
+            Some(&Entry {
+                kind: EntryKind::Occupied(ref v),
+                ..
+            }) => v,
+            _ => panic!("invalid key"),
+        }
+    }
+}
+
+impl<T> ops::IndexMut<Rc<usize>> for Slab<T> {
+    #[cfg_attr(not(slab_no_track_caller), track_caller)]
+    fn index_mut(&mut self, key: Rc<usize>) -> &mut T {
+        match self.entries.get_mut(*key) {
             Some(&mut Entry {
                 kind: EntryKind::Occupied(ref mut v),
                 ..
