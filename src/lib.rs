@@ -32,15 +32,16 @@
 //!
 //! ```
 //! # use slab::*;
+//! # use std::rc::Rc;
 //! let mut slab = Slab::new();
 //!
 //! let hello = slab.insert("hello");
 //! let world = slab.insert("world");
 //!
 //! assert_eq!(slab[hello], "hello");
-//! assert_eq!(slab[world], "world");
+//! assert_eq!(slab[Rc::clone(&world)], "world");
 //!
-//! slab[world] = "earth";
+//! slab[Rc::clone(&world)] = "earth";
 //! assert_eq!(slab[world], "earth");
 //! ```
 //!
@@ -1180,14 +1181,15 @@ impl<T> Slab<T> {
     ///
     /// ```
     /// # use slab::*;
+    /// # use std::rc::Rc;
     /// let mut slab = Slab::new();
     ///
     /// let hello = slab.insert("hello");
-    /// assert!(slab.contains(hello));
+    /// assert!(slab.contains(*hello));
     ///
-    /// slab.remove(hello);
+    /// slab.remove(Rc::clone(&hello));
     ///
-    /// assert!(!slab.contains(hello));
+    /// assert!(!slab.contains(*hello));
     /// ```
     pub fn contains(&self, key: usize) -> bool {
         match self.entries.get(key) {
