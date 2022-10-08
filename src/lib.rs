@@ -1123,7 +1123,7 @@ impl<T> Slab<T> {
 
     pub fn cleanup(&mut self) {
         for value in self.entries.iter_mut() {
-            if Rc::<usize>::strong_count(&value.key) == 0 {
+            if Rc::<usize>::strong_count(&value.key) == 1 {
                 // Swap the entry at the provided value
                 let prev = mem::replace(
                     value,
